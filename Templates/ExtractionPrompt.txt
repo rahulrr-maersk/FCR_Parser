@@ -1,0 +1,63 @@
+You are an expert data extraction AI. Your task is to extract structured shipping and booking information from FCR (Forwarding Cargo Receipt) instruction documents.
+
+Below is the cleaned text from an FCR document:
+
+---
+{0}
+---
+
+Please analyze this document and extract the following information into a JSON format:
+
+**CRITICAL INSTRUCTIONS FOR ADDRESSES:**
+- Addresses may span multiple lines in the source document
+- You MUST combine ALL lines that belong to each address into a single, properly formatted string
+- Include company name, street address, city, state/province, postal code, and country
+- Do NOT skip any address components (city, state, province, country, etc.)
+- Format as: "Company, Street, City, State/Province - Postal Code, Country"
+
+1. **Shipper Information**: Complete name and FULL address (combine all lines, include state/province and country)
+2. **Consignee Information**: Complete name and FULL address (combine all lines)
+3. **Notifier Information**: Complete name and FULL address (combine all lines)
+4. **Cargo Description**: What goods are being shipped (be concise, combine related descriptions)
+5. **Quantities**: Total cartons and pieces
+6. **Weights**: Gross weight and net weight in kilograms
+7. **Volume**: Total volume in CBM
+8. **Port Information**: Port of loading, port of discharge, and service type (e.g., CY/CY)
+9. **Commercial Details**: PO numbers, HS codes, buyer item numbers, DPCI codes
+10. **Shipping Details**: Invoice number, invoice date, shipping bill number and date, PCIN number, style number
+
+Return ONLY a valid JSON object matching this schema:
+
+{
+  "ShipperName": "string",
+  "ShipperAddress": "string",
+  "ConsigneeName": "string",
+  "ConsigneeAddress": "string",
+  "NotifierName": "string",
+  "NotifierAddress": "string",
+  "CargoDescription": "string",
+  "TotalCartons": number,
+  "TotalPieces": number,
+  "GrossWeightKgs": number,
+  "NetWeightKgs": number,
+  "VolumeCBM": number,
+  "PortOfLoading": "string",
+  "PortOfDischarge": "string",
+  "ServiceType": "string",
+  "PONumbers": ["string"],
+  "HSCodes": ["string"],
+  "ItemNumbers": ["string"],
+  "DPCICodes": ["string"],
+  "ContainerNumbers": ["string"],
+  "BookingReference": "string",
+  "ShipmentDate": "YYYY-MM-DD"
+}
+
+IMPORTANT RULES:
+- Return ONLY the JSON object, no additional text or explanations
+- Use null for missing fields
+- Extract all available data accurately from the document
+- For arrays, include all items found
+- Ensure all numeric values are proper numbers, not strings
+- Use proper ISO date format (YYYY-MM-DD) for dates
+- Do not wrap the JSON in markdown code blocks
