@@ -97,7 +97,8 @@ try
             var jsonOptions = new JsonSerializerOptions 
             { 
                 WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
             
             var jsonContent = JsonSerializer.Serialize(extractedData, jsonOptions);

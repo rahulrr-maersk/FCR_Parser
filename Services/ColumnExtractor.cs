@@ -49,10 +49,44 @@ public static class ColumnExtractor
             return columnData;
         }
         
+        
         // Extract all data from those columns (start after header row)
+        bool lastRowWasEmpty = false;
         for (int i = headerRowIndex + 1; i < lines.Length; i++)
         {
             var columns = lines[i].Split(',');
+            
+            // Check if this entire row is empty in the column range (visual separator)
+            bool isEmptyRow = true;
+            for (int j = columnStart; j <= Math.Min(columnEnd, columns.Length - 1); j++)
+            {
+                var checkValue = columns[j].Trim();
+                checkValue = System.Text.RegularExpressions.Regex.Replace(checkValue, @"x+", "", 
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                
+                if (!string.IsNullOrWhiteSpace(checkValue))
+                {
+                    isEmptyRow = false;
+                    break;
+                }
+            }
+            
+            // If entire row is empty and we have data already, add ONE visual separator
+            // (but don't add multiple consecutive separators)
+            if (isEmptyRow && columnData.Count > 0 && !lastRowWasEmpty)
+            {
+                columnData.Add("---");  // Visual separator
+                lastRowWasEmpty = true;
+                continue;
+            }
+            
+            if (isEmptyRow)
+            {
+                lastRowWasEmpty = true;
+                continue;
+            }
+            
+            lastRowWasEmpty = false;
             
             // Check all columns in the range
             for (int j = columnStart; j <= Math.Min(columnEnd, columns.Length - 1); j++)
@@ -80,6 +114,13 @@ public static class ColumnExtractor
                 }
             }
         }
+        
+        // Remove trailing separators
+        while (columnData.Count > 0 && columnData[columnData.Count - 1] == "---")
+        {
+            columnData.RemoveAt(columnData.Count - 1);
+        }
+        
         
         return columnData;
     }
