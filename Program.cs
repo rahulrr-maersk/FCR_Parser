@@ -27,7 +27,8 @@ services.AddTransient<IAIProvider, MistralProvider>();
 services.AddTransient<IAIProvider, GeminiProvider>();
 
 // Register services
-services.AddSingleton<ExtractionService>();
+services.AddSingleton<ShipperExtractor>();
+services.AddSingleton<DataExtractionOrchestrator>();
 
 var serviceProvider = services.BuildServiceProvider();
 
@@ -36,7 +37,7 @@ Console.WriteLine();
 
 try
 {
-    var extractionService = serviceProvider.GetRequiredService<ExtractionService>();
+    var orchestrator = serviceProvider.GetRequiredService<DataExtractionOrchestrator>();
 
     // Use project root directory instead of build output directory for easier file access
     var projectRoot = Directory.GetCurrentDirectory();
@@ -69,20 +70,8 @@ try
 
         try
         {
-            // Read and clean CSV file
-            var rawText = File.ReadAllText(csvFile);
-            var tempFile = Path.GetTempFileName();
-            File.WriteAllText(tempFile, rawText);
-            var cleanedText = TextCleaner.Clean(tempFile);
-            File.Delete(tempFile);
-            
-            // Save cleaned text
-            var cleanedFileName = Path.GetFileNameWithoutExtension(fileName) + "_cleaned.txt";
-            var cleanedFilePath = Path.Combine(cleanedFolder, cleanedFileName);
-            File.WriteAllText(cleanedFilePath, cleanedText);
-
-            // Extract data using AI
-            var extractedData = await extractionService.ExtractAsync(cleanedText, fileName);
+            // Use orchestrator to extract all data (shipper + columns)
+            var extractedData = await orchestrator.ExtractAllDataAsync(csvFile, fileName);
 
             if (extractedData == null)
             {
@@ -90,6 +79,16 @@ try
                 failureCount++;
                 continue;
             }
+
+            // Save cleaned text for reference
+            var cleanedFileName = Path.GetFileNameWithoutExtension(fileName) + "_cleaned.txt";
+            var cleanedFilePath = Path.Combine(cleanedFolder, cleanedFileName);
+            var rawText = File.ReadAllText(csvFile);
+            var tempFile = Path.GetTempFileName();
+            File.WriteAllText(tempFile, rawText);
+            var cleanedText = TextCleaner.Clean(tempFile);
+            File.Delete(tempFile);
+            File.WriteAllText(cleanedFilePath, cleanedText);
 
             // Save JSON output
             var outputFileName = Path.GetFileNameWithoutExtension(fileName) + ".json";

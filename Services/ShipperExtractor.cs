@@ -4,12 +4,12 @@ using FcrParser.Services.AI;
 
 namespace FcrParser.Services;
 
-public class ExtractionService
+public class ShipperExtractor
 {
     private readonly IEnumerable<IAIProvider> _providers;
     private readonly string _promptTemplate;
 
-    public ExtractionService(IEnumerable<IAIProvider> providers)
+    public ShipperExtractor(IEnumerable<IAIProvider> providers)
     {
         _providers = providers;
         
@@ -51,15 +51,6 @@ public class ExtractionService
                     if (data != null)
                     {
                         data.FileName = fileName;
-                        
-                        // Post-processing: Remove any hyphenated codes from BuyerItemCodes
-                        if (data.MarksAndNumbers?.BuyerItemCodes != null)
-                        {
-                            data.MarksAndNumbers.BuyerItemCodes = data.MarksAndNumbers.BuyerItemCodes
-                                .Where(code => !code.Contains('-'))
-                                .ToList();
-                        }
-                        
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("Success!");
                         Console.ResetColor();

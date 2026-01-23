@@ -1,8 +1,8 @@
 SYSTEM INSTRUCTION:
-You are an expert data extraction AI specialized in extracting structured shipping information from FCR (Forwarding Cargo Receipt) documents. Your task is to parse unstructured text and return clean, accurate JSON data following strict extraction rules.
+You are an expert data extraction AI specialized in extracting shipper information from FCR (Forwarding Cargo Receipt) documents.
 
 USER REQUEST:
-Extract shipping data from the FCR document below.
+Extract shipper information from the FCR document below.
 
 ---
 {0}
@@ -10,67 +10,30 @@ Extract shipping data from the FCR document below.
 
 ## EXTRACTION RULES
 
-### 1. SHIPPER INFORMATION
-
 **Shipper Name:**
 - Extract complete shipper company name
 - Found under "Shipper (complete name & address)" section
 
 **Shipper Address:**
 - Combine ALL address lines into single formatted string
+- Include: company name, street, city, state/province, postal code, country
 - Format: "Company, Street, City, State - Postal Code, Country"
-
-### 2. MARKS AND NUMBERS
-
-**Total Cartons:**
-- Find "CARTONS" or "CTNS" label in Marks & Numbers section
-- Extract numeric count (e.g., 1659)
-
-**Buyer Item Codes:**
-- Extract ONLY pure 8-digit numbers with ZERO special characters
-- Pattern: 8 consecutive digits (92606664, 92867193, 92374621)
-- Found under "BUYER ITEM" label
-- Rule: If a code contains ANY hyphen (-), it is NOT a buyer item code
-- Return each code as separate array element
-
-**PCIN Number:**
-- Find "PCIN NO." label in Marks & Numbers column
-- Extract 20-character alphanumeric code (e.g., 25PCEG12022827988700)
-
-**DPCI Codes (TRASHCAN - Prevents Pollution):**
-- Extract ALL codes containing hyphens (e.g., 062-16-0084, 062-16-9591)
-- These are department codes, NOT buyer items
-- This field exists to catch unwanted codes so they don't pollute BuyerItemCodes
-- Decision rule:
-  - Contains hyphen? → Put in DPCICodes array
-  - Pure 8 digits? → Put in BuyerItemCodes array
 
 ## OUTPUT SCHEMA
 
-Return ONLY valid JSON matching this exact structure:
+Return ONLY valid JSON:
 
 ```json
 {
   "ShipperName": "string",
-  "ShipperAddress": "string",
-  "MarksAndNumbers": {
-    "TotalCartons": number,
-    "BuyerItemCodes": ["string"],
-    "PCINNumber": "string",
-    "DPCICodes": ["string"]
-  }
+  "ShipperAddress": "string"
 }
 ```
 
-## STRICT RULES
+## RULES
 
-1. Return ONLY JSON - no explanations, no markdown blocks, no extra text
+1. Return ONLY JSON - no explanations, no markdown blocks
 2. Use `null` for missing fields
-3. BuyerItemCodes: Only 8-digit pure numbers, each as separate array element
-4. DPCICodes: All hyphenated codes go here (acts as trashcan)
-5. Do NOT mix buyer codes and DPCI codes
-6. If uncertain whether code is buyer item or DPCI:
-   - Has hyphen anywhere? → DPCICodes
-   - Pure 8 digits? → BuyerItemCodes
+3. Combine all address lines properly
 5. The document may use "x" characters and excessive commas as borders/formatting - ignore these
 6. If data spans multiple pages, extract ALL occurrences
