@@ -21,7 +21,7 @@ services.AddHttpClient();
 // Register AI providers in the specified order: Cerebras -> Groq -> Deepseek -> Mistral -> Gemini
 services.AddSingleton<IConfiguration>(configuration);
 services.AddTransient<IAIProvider, CerebrasProvider>();
-// services.AddTransient<IAIProvider, GroqProvider>();
+services.AddTransient<IAIProvider, GroqProvider>();
 services.AddTransient<IAIProvider, DeepSeekProvider>();
 services.AddTransient<IAIProvider, MistralProvider>();
 services.AddTransient<IAIProvider, GeminiProvider>();
