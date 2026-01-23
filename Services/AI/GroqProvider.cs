@@ -26,7 +26,7 @@ public class GroqProvider : IAIProvider
             messages = new[] { 
                 new { role = "user", content = prompt } 
             },
-            temperature = 0.3
+            temperature = 0
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions");

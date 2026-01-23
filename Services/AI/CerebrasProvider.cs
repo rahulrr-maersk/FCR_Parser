@@ -26,7 +26,7 @@ public class CerebrasProvider : IAIProvider
             messages = new[] { 
                 new { role = "user", content = prompt } 
             },
-            temperature = 0.3,
+            temperature = 0,
             max_tokens = 2000
         };
 

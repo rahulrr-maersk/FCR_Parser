@@ -21,7 +21,7 @@ services.AddHttpClient();
 // Register AI providers in the specified order: Cerebras -> Groq -> Deepseek -> Mistral -> Gemini
 services.AddSingleton<IConfiguration>(configuration);
 services.AddTransient<IAIProvider, CerebrasProvider>();
-services.AddTransient<IAIProvider, GroqProvider>();
+// services.AddTransient<IAIProvider, GroqProvider>();
 services.AddTransient<IAIProvider, DeepSeekProvider>();
 services.AddTransient<IAIProvider, MistralProvider>();
 services.AddTransient<IAIProvider, GeminiProvider>();
@@ -31,11 +31,7 @@ services.AddSingleton<ExtractionService>();
 
 var serviceProvider = services.BuildServiceProvider();
 
-Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine("═══════════════════════════════════════════════════════");
-Console.WriteLine("     FCR Parser - AI-Powered Data Extraction Tool     ");
-Console.WriteLine("═══════════════════════════════════════════════════════");
-Console.ResetColor();
+Console.WriteLine("FCR Parser - AI-Powered Data Extraction");
 Console.WriteLine();
 
 try
@@ -57,14 +53,11 @@ try
 
     if (csvFiles.Length == 0)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("⚠️  No CSV files found in Input folder.");
-        Console.ResetColor();
         return;
     }
 
-    Console.WriteLine($"Found {csvFiles.Length} CSV file(s) to process.");
-    Console.WriteLine();
+    Console.WriteLine($"Found {csvFiles.Length} file(s) to process.\n");
 
     int successCount = 0;
     int failureCount = 0;
@@ -72,76 +65,33 @@ try
     foreach (var csvFile in csvFiles)
     {
         var fileName = Path.GetFileName(csvFile);
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.WriteLine($"📄 Processing: {fileName}");
-        Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.ResetColor();
+        Console.WriteLine($"Processing: {fileName}");
 
         try
         {
-            // Step 1: Read CSV file
-            Console.Write("   [1/5] Reading CSV file... ");
+            // Read and clean CSV file
             var rawText = File.ReadAllText(csvFile);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓");
-            Console.ResetColor();
-
-            // Step 2: Clean text using TextCleaner
-            Console.Write("   [2/5] Cleaning text... ");
-            
-            // Save raw CSV temporarily for cleaning
             var tempFile = Path.GetTempFileName();
             File.WriteAllText(tempFile, rawText);
             var cleanedText = TextCleaner.Clean(tempFile);
             File.Delete(tempFile);
             
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓");
-            Console.ResetColor();
-
-            // Step 3: Save cleaned text to Cleaned folder
-            Console.Write("   [3/5] Saving cleaned text... ");
+            // Save cleaned text
             var cleanedFileName = Path.GetFileNameWithoutExtension(fileName) + "_cleaned.txt";
             var cleanedFilePath = Path.Combine(cleanedFolder, cleanedFileName);
             File.WriteAllText(cleanedFilePath, cleanedText);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓");
-            Console.ResetColor();
 
-            // Step 4: Extract data using AI
-            Console.WriteLine("   [3/4] Extracting data with AI providers:");
+            // Extract data using AI
             var extractedData = await extractionService.ExtractAsync(cleanedText, fileName);
 
             if (extractedData == null)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"   ❌ Failed to extract data from {fileName}");
-                Console.ResetColor();
+                Console.WriteLine($"❌ Failed: {fileName}");
                 failureCount++;
-                Console.WriteLine();
                 continue;
             }
 
-            // Step 5: Validate and save JSON
-            Console.Write("   [5/5] Validating and saving JSON... ");
-            
-            // Validate: Check if essential fields are present
-            bool isValid = !string.IsNullOrWhiteSpace(extractedData.ShipperName) ||
-                          !string.IsNullOrWhiteSpace(extractedData.ConsigneeName) ||
-                          !string.IsNullOrWhiteSpace(extractedData.CargoDescription);
-
-            if (!isValid)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("✗ (Validation failed: Missing essential data)");
-                Console.ResetColor();
-                failureCount++;
-                Console.WriteLine();
-                continue;
-            }
-
-            // Save to Output folder with original filename + .json
+            // Save JSON output
             var outputFileName = Path.GetFileNameWithoutExtension(fileName) + ".json";
             var outputPath = Path.Combine(outputFolder, outputFileName);
 
@@ -154,20 +104,12 @@ try
             var jsonContent = JsonSerializer.Serialize(extractedData, jsonOptions);
             File.WriteAllText(outputPath, jsonContent);
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("✓");
-            Console.ResetColor();
-            
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"   ✅ Successfully saved to: {outputFileName}");
-            Console.ResetColor();
+            Console.WriteLine($"✅ Success: {outputFileName}");
             successCount++;
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"   ❌ Error processing {fileName}: {ex.Message}");
-            Console.ResetColor();
+            Console.WriteLine($"❌ Error: {fileName} - {ex.Message}");
             failureCount++;
         }
 
@@ -175,28 +117,16 @@ try
     }
 
     // Summary
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("═══════════════════════════════════════════════════════");
-    Console.WriteLine("                    Processing Complete                ");
-    Console.WriteLine("═══════════════════════════════════════════════════════");
-    Console.ResetColor();
-    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine("═══════════════════════════════");
     Console.WriteLine($"✅ Successful: {successCount}");
-    Console.ResetColor();
-    
     if (failureCount > 0)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"❌ Failed: {failureCount}");
-        Console.ResetColor();
     }
-    
     Console.WriteLine();
 }
 catch (Exception ex)
 {
-    Console.ForegroundColor = ConsoleColor.Red;
     Console.WriteLine($"Fatal Error: {ex.Message}");
-    Console.ResetColor();
 }
 

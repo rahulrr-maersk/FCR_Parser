@@ -51,6 +51,15 @@ public class ExtractionService
                     if (data != null)
                     {
                         data.FileName = fileName;
+                        
+                        // Post-processing: Remove any hyphenated codes from BuyerItemCodes
+                        if (data.MarksAndNumbers?.BuyerItemCodes != null)
+                        {
+                            data.MarksAndNumbers.BuyerItemCodes = data.MarksAndNumbers.BuyerItemCodes
+                                .Where(code => !code.Contains('-'))
+                                .ToList();
+                        }
+                        
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("Success!");
                         Console.ResetColor();

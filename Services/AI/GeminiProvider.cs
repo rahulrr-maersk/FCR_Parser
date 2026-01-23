@@ -30,7 +30,7 @@ public class GeminiProvider : IAIProvider
         var requestBody = new 
         { 
             contents = new[] { new { parts = new[] { new { text = prompt } } } },
-            generationConfig = new { temperature = 0.3, maxOutputTokens = 2000 }
+            generationConfig = new { temperature = 0, maxOutputTokens = 2000 }
         };
         var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 

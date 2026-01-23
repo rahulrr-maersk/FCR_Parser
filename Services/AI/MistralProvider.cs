@@ -28,7 +28,7 @@ public class MistralProvider : IAIProvider
             {
                 new { role = "user", content = prompt }
             },
-            temperature = 0.3
+            temperature = 0
         };
 
         var json = JsonSerializer.Serialize(requestBody);
