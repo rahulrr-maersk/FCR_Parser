@@ -25,7 +25,15 @@ public class JsonToTextConverter
             sb.AppendLine($"{displayName}:");
 
             // Handle different value types
-            if (value.ValueKind == JsonValueKind.Array)
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                // Handle nested objects (like ShipperInfo)
+                foreach (var nestedProp in value.EnumerateObject())
+                {
+                    sb.AppendLine($"  {nestedProp.Name}: {nestedProp.Value.GetString() ?? "N/A"}");
+                }
+            }
+            else if (value.ValueKind == JsonValueKind.Array)
             {
                 foreach (var item in value.EnumerateArray())
                 {

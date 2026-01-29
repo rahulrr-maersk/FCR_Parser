@@ -1,117 +1,120 @@
+using CsvHelper;
+using CsvHelper.Configuration;
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 namespace FcrParser.Services;
 
 public static class ColumnExtractor
 {
-    public static List<string> ExtractColumn(string csvFilePath, string columnNamePattern)
+    private static List<string> ExtractColumn(string csvFilePath, string[] possibleColumnNames)
     {
         var columnData = new List<string>();
-        var lines = File.ReadAllLines(csvFilePath);
         
-        if (lines.Length == 0) return columnData;
-        
-        int headerRowIndex = -1;
-        int columnStart = -1;
-        int columnEnd = -1;
-        
-        // Find the header row and determine column span
-        for (int i = 0; i < lines.Length; i++)
+        using var reader = new StreamReader(csvFilePath);
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            var line = lines[i];
-            
-            // Check if this line contains the column header
-            if (line.Contains(columnNamePattern, StringComparison.OrdinalIgnoreCase))
+            HasHeaderRecord = false, // We'll find the header row manually
+            TrimOptions = TrimOptions.Trim,
+            BadDataFound = null // Ignore bad data instead of throwing
+        };
+        
+        using var csv = new CsvReader(reader, config);
+        
+        // Find the actual header row (look for row containing data column names)
+        string[]? headerRecord = null;
+        int headerRowIndex = -1;
+        int currentRow = 0;
+        
+        while (csv.Read())
+        {
+            var row = new List<string>();
+            for (int i = 0; i < csv.Parser.Count; i++)
             {
-                headerRowIndex = i;
-                
-                // Find where the column name starts and ends in the line
-                var columns = line.Split(',');
-                for (int j = 0; j < columns.Length; j++)
-                {
-                    var cell = columns[j].Trim();
-                    cell = System.Text.RegularExpressions.Regex.Replace(cell, @"x+", "", 
-                        System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-                    
-                    if (!string.IsNullOrWhiteSpace(cell) && cell.Contains(columnNamePattern, StringComparison.OrdinalIgnoreCase))
-                    {
-                        columnStart = j;
-                        
-                        // Find the end of this column by looking for the next non-empty header
-                        columnEnd = FindColumnEnd(columns, j);
-                        break;
-                    }
-                }
+                row.Add(csv.GetField(i) ?? "");
+            }
+            
+            // Check if this row contains any of our target column names
+            var rowText = string.Join(" ", row);
+            if (rowText.Contains("Marks", StringComparison.OrdinalIgnoreCase) || 
+                rowText.Contains("Cargo", StringComparison.OrdinalIgnoreCase) ||
+                rowText.Contains("S/O Number", StringComparison.OrdinalIgnoreCase))
+            {
+                headerRecord = row.ToArray();
+                headerRowIndex = currentRow;
                 break;
             }
+            currentRow++;
         }
         
-        if (headerRowIndex == -1 || columnStart == -1)
-        {
-            return columnData;
-        }
+        if (headerRecord == null) return columnData;
         
-        
-        // Extract all data from those columns (start after header row)
-        bool lastRowWasEmpty = false;
-        for (int i = headerRowIndex + 1; i < lines.Length; i++)
+        // Find column indices that match any of the possible names
+        var matchingIndices = new List<int>();
+        for (int i = 0; i < headerRecord.Length; i++)
         {
-            var columns = lines[i].Split(',');
+            var header = CleanHeaderName(headerRecord[i]);
             
-            // Check if this entire row is empty in the column range (visual separator)
-            bool isEmptyRow = true;
-            for (int j = columnStart; j <= Math.Min(columnEnd, columns.Length - 1); j++)
+            if (!string.IsNullOrWhiteSpace(header))
             {
-                var checkValue = columns[j].Trim();
-                checkValue = System.Text.RegularExpressions.Regex.Replace(checkValue, @"x+", "", 
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-                
-                if (!string.IsNullOrWhiteSpace(checkValue))
+                // Check if header matches any possible column name
+                foreach (var possibleName in possibleColumnNames)
                 {
-                    isEmptyRow = false;
-                    break;
+                    if (header.Contains(possibleName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchingIndices.Add(i);
+                        
+                        // Find span - add adjacent empty columns
+                        for (int j = i + 1; j < headerRecord.Length; j++)
+                        {
+                            var nextHeader = CleanHeaderName(headerRecord[j]);
+                            if (string.IsNullOrWhiteSpace(nextHeader))
+                            {
+                                matchingIndices.Add(j);
+                            }
+                            else
+                            {
+                                break; // Stop at next column header
+                            }
+                        }
+                        goto ColumnFound; // Exit all loops
+                    }
                 }
             }
+        }
+        ColumnFound:
+        
+        if (matchingIndices.Count == 0) return columnData;
+        
+        bool lastRowWasEmpty = false;
+        
+        // Read data rows
+        while (csv.Read())
+        {
+            bool isEmptyRow = true;
+            var rowValues = new List<string>();
             
-            // If entire row is empty and we have data already, add ONE visual separator
-            // (but don't add multiple consecutive separators)
-            if (isEmptyRow && columnData.Count > 0 && !lastRowWasEmpty)
+            foreach (var index in matchingIndices)
             {
-                columnData.Add("---");  // Visual separator
-                lastRowWasEmpty = true;
-                continue;
-            }
-            
-            if (isEmptyRow)
-            {
-                lastRowWasEmpty = true;
-                continue;
-            }
-            
-            lastRowWasEmpty = false;
-            
-            // Check all columns in the range
-            for (int j = columnStart; j <= Math.Min(columnEnd, columns.Length - 1); j++)
-            {
-                var value = columns[j];
+                var value = csv.GetField(index) ?? "";
+                value = CleanCellValue(value);
                 
-                // Clean the value:
-                // 1. Remove all 'x' markers
-                value = System.Text.RegularExpressions.Regex.Replace(value, @"x+", "", 
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                
-                // 2. Remove all double quotes (CSV artifacts)
-                value = value.Replace("\"", "");
-                
-                // 3. Trim whitespace
-                value = value.Trim();
-
-                // 4. Replace multiple spaces with a slash separator
-                value = System.Text.RegularExpressions.Regex.Replace(value, @"\s{2,}", " / ");
-                
-                // Skip empty values and column headers that shouldn't be in data
                 if (!string.IsNullOrWhiteSpace(value) && !IsColumnHeader(value))
                 {
-                    columnData.Add(value);
+                    rowValues.Add(value);
+                    isEmptyRow = false;
                 }
+            }
+            
+            if (isEmptyRow && columnData.Count > 0 && !lastRowWasEmpty)
+            {
+                columnData.Add("---");
+                lastRowWasEmpty = true;
+            }
+            else if (!isEmptyRow)
+            {
+                columnData.AddRange(rowValues);
+                lastRowWasEmpty = false;
             }
         }
         
@@ -121,48 +124,36 @@ public static class ColumnExtractor
             columnData.RemoveAt(columnData.Count - 1);
         }
         
-        
         return columnData;
     }
     
-    private static int FindColumnEnd(string[] headerColumns, int startIndex)
+    private static string CleanHeaderName(string header)
     {
-        // Start searching from the column after the current header
-        for (int i = startIndex + 1; i < headerColumns.Length; i++)
-        {
-            var cell = headerColumns[i].Trim();
-            
-            // Remove 'x' markers to see actual content
-            cell = System.Text.RegularExpressions.Regex.Replace(cell, @"x+", "", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-            
-            // If we find another non-empty cell, that's the start of the next column
-            if (!string.IsNullOrWhiteSpace(cell))
-            {
-                // Return the index just before the next header
-                return i - 1;
-            }
-        }
-        
-        // If no next header found, use the rest of the row (or a reasonable max)
-        // Use the smaller of: end of row or start + 20 columns
-        return Math.Min(headerColumns.Length - 1, startIndex + 20);
+        header = header.Trim();
+        // Remove 'x' markers
+        header = Regex.Replace(header, @"x+", "", RegexOptions.IgnoreCase).Trim();
+        // Decode HTML entities like &amp; to &
+        header = System.Net.WebUtility.HtmlDecode(header);
+        return header;
+    }
+    
+    private static string CleanCellValue(string value)
+    {
+        // Remove 'x' markers
+        value = Regex.Replace(value, @"x+", "", RegexOptions.IgnoreCase);
+        value = value.Trim();
+        // Replace multiple spaces with separator
+        value = Regex.Replace(value, @"\s{2,}", " / ");
+        return value;
     }
     
     private static bool IsColumnHeader(string value)
     {
-        // Filter out column header names that shouldn't be in the extracted data
         var columnHeaders = new[]
         {
-            "Cargo Description",
-            "Marks and Numbers",
-            "Marks & Numbers",
-            "S/O Number",
-            "Weight",
-            "Measurement",
-            "Gross Weight",
-            "Nett Weight",
-            "CBM"
+            "Cargo Description", "Marks and Numbers", "Marks & Numbers",
+            "S/O Number", "Weight", "Measurement", "Gross Weight",
+            "Nett Weight", "CBM", "Shipper", "Consignee"
         };
         
         return columnHeaders.Any(h => value.Equals(h, StringComparison.OrdinalIgnoreCase));
@@ -170,11 +161,25 @@ public static class ColumnExtractor
     
     public static List<string> ExtractMarksAndNumbers(string csvFilePath)
     {
-        return ExtractColumn(csvFilePath, "Marks");
+        var possibleNames = new[] { "Marks", "Mark", "M&N", "Marks & Numbers", "Marks and Numbers", "Marks & Nos" };
+        return ExtractColumn(csvFilePath, possibleNames);
     }
     
     public static List<string> ExtractCargoDescription(string csvFilePath)
     {
-        return ExtractColumn(csvFilePath, "Cargo");
+        var possibleNames = new[] { "Cargo", "Description", "Cargo Description", "Goods Description", "Commodity" };
+        return ExtractColumn(csvFilePath, possibleNames);
+    }
+    
+    public static List<string> ExtractShipperInfo(string csvFilePath)
+    {
+        var possibleNames = new[] { "Shipper", "Shipper Name", "Shipper Address", "Consignor", "Shipper Details" };
+        return ExtractColumn(csvFilePath, possibleNames);
+    }
+    
+    public static List<string> ExtractConsigneeInfo(string csvFilePath)
+    {
+        var possibleNames = new[] { "Consignee", "Consignee Name", "Consignee Address", "Receiver" };
+        return ExtractColumn(csvFilePath, possibleNames);
     }
 }

@@ -2,53 +2,40 @@
 using Microsoft.Extensions.DependencyInjection;
 using FcrParser.Services;
 using FcrParser.Services.AI;
-using FcrParser.Models;
 using System.Text.Json;
 using FcrParse.Services;
 
-// Build configuration
+// Build configuration for AI providers
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false)
-    .AddUserSecrets<Program>()
+    .AddUserSecrets<Program>(optional: true)
     .Build();
 
-// Setup dependency injection
+// Setup dependency injection for AI providers
 var services = new ServiceCollection();
-
-// Register HttpClient for AI providers
 services.AddHttpClient();
-
-// Register AI providers in the specified order: Cerebras -> Groq -> Deepseek -> Mistral -> Gemini
 services.AddSingleton<IConfiguration>(configuration);
 services.AddTransient<IAIProvider, CerebrasProvider>();
 services.AddTransient<IAIProvider, GroqProvider>();
 services.AddTransient<IAIProvider, DeepSeekProvider>();
 services.AddTransient<IAIProvider, MistralProvider>();
 services.AddTransient<IAIProvider, GeminiProvider>();
-
-// Register services
 services.AddSingleton<ShipperExtractor>();
-services.AddSingleton<DataExtractionOrchestrator>();
-
 var serviceProvider = services.BuildServiceProvider();
 
-Console.WriteLine("FCR Parser - AI-Powered Data Extraction");
+Console.WriteLine("=== FCR Parser - Simple & Reliable ===");
 Console.WriteLine();
 
 try
 {
-    var orchestrator = serviceProvider.GetRequiredService<DataExtractionOrchestrator>();
-
-    // Use project root directory instead of build output directory for easier file access
+    // Use project root directory
     var projectRoot = Directory.GetCurrentDirectory();
     var inputFolder = Path.Combine(projectRoot, "Input");
     var outputFolder = Path.Combine(projectRoot, "Output");
-    var cleanedFolder = Path.Combine(projectRoot, "Cleaned");
 
     // Ensure folders exist
     Directory.CreateDirectory(outputFolder);
-    Directory.CreateDirectory(cleanedFolder);
 
     // Find all CSV files in Input folder
     var csvFiles = Directory.GetFiles(inputFolder, "*.csv");
@@ -69,27 +56,43 @@ try
         var fileName = Path.GetFileName(csvFile);
         Console.WriteLine($"Processing: {fileName}");
 
+
         try
         {
-            // Use orchestrator to extract all data (shipper + columns)
-            var extractedData = await orchestrator.ExtractAllDataAsync(csvFile, fileName);
-
-            if (extractedData == null)
+            // Run column extraction (fast, synchronous)
+            var columnData = new Dictionary<string, List<string>>
             {
-                Console.WriteLine($"❌ Failed: {fileName}");
-                failureCount++;
-                continue;
-            }
+                ["MarksAndNumbers"] = ColumnExtractor.ExtractMarksAndNumbers(csvFile),
+                ["CargoDescription"] = ColumnExtractor.ExtractCargoDescription(csvFile)
+            };
 
-            // Save cleaned text for reference
-            var cleanedFileName = Path.GetFileNameWithoutExtension(fileName) + "_cleaned.txt";
-            var cleanedFilePath = Path.Combine(cleanedFolder, cleanedFileName);
-            var rawText = File.ReadAllText(csvFile);
-            var tempFile = Path.GetTempFileName();
-            File.WriteAllText(tempFile, rawText);
-            var cleanedText = TextCleaner.Clean(tempFile);
-            File.Delete(tempFile);
-            File.WriteAllText(cleanedFilePath, cleanedText);
+            // Run AI extraction for shipper info in parallel (async, non-blocking)
+            var shipperExtractor = serviceProvider.GetRequiredService<ShipperExtractor>();
+            var shipperTask = ExtractShipperWithAI(csvFile, fileName, shipperExtractor);
+            
+            // Continue with column data while AI runs in background
+            var extractedData = new Dictionary<string, object>
+            {
+                ["MarksAndNumbers"] = columnData["MarksAndNumbers"],
+                ["CargoDescription"] = columnData["CargoDescription"],
+                ["ShipperInfo"] = new Dictionary<string, string?>()
+            };
+            
+            // Wait for AI extraction to complete (non-blocking)
+            var shipperData = await shipperTask;
+            if (shipperData != null)
+            {
+                extractedData["ShipperInfo"] = new Dictionary<string, string?>
+                {
+                    ["Name"] = shipperData.Value.ShipperName,
+                    ["Address"] = shipperData.Value.ShipperAddress
+                };
+                Console.WriteLine("  ✓ Shipper info extracted via AI");
+            }
+            else
+            {
+                Console.WriteLine("  ⚠ Shipper info extraction failed (continuing...)");
+            };
 
             // Save JSON output
             var outputFileName = Path.GetFileNameWithoutExtension(fileName) + ".json";
@@ -98,7 +101,6 @@ try
             var jsonOptions = new JsonSerializerOptions 
             { 
                 WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
             
@@ -110,7 +112,7 @@ try
             var txtOutputPath = Path.Combine(outputFolder, txtFileName);
             JsonToTextConverter.ConvertJsonToText(outputPath, txtOutputPath);
 
-            Console.WriteLine($"✅ Success: {outputFileName}");
+            Console.WriteLine($"✅ Completed: {fileName}");
             successCount++;
         }
         catch (Exception ex)
@@ -134,5 +136,37 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"Fatal Error: {ex.Message}");
+}
+
+async Task<(string? ShipperName, string? ShipperAddress)?> ExtractShipperWithAI(
+    string csvFile, string fileName, ShipperExtractor extractor)
+{
+    try
+    {
+        // Clean CSV text for AI processing
+        var rawText = await File.ReadAllTextAsync(csvFile);
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, rawText);
+            var cleanedText = TextCleaner.Clean(tempFile);
+            
+            // Extract shipper data using AI
+            var result = await extractor.ExtractAsync(cleanedText, fileName);
+            if (result != null)
+            {
+                return (result.ShipperName, result.ShipperAddress);
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  AI extraction error: {ex.Message}");
+    }
+    return null;
 }
 
