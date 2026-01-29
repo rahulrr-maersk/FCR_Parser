@@ -4,6 +4,7 @@ using FcrParser.Services;
 using FcrParser.Services.AI;
 using FcrParser.Models;
 using System.Text.Json;
+using FcrParse.Services;
 
 // Build configuration
 var configuration = new ConfigurationBuilder()
@@ -103,6 +104,11 @@ try
             
             var jsonContent = JsonSerializer.Serialize(extractedData, jsonOptions);
             File.WriteAllText(outputPath, jsonContent);
+
+            // Convert JSON to clean text format
+            var txtFileName = Path.GetFileNameWithoutExtension(fileName) + ".txt";
+            var txtOutputPath = Path.Combine(outputFolder, txtFileName);
+            JsonToTextConverter.ConvertJsonToText(outputPath, txtOutputPath);
 
             Console.WriteLine($"✅ Success: {outputFileName}");
             successCount++;
