@@ -182,4 +182,107 @@ public static class ColumnExtractor
         var possibleNames = new[] { "Consignee", "Consignee Name", "Consignee Address", "Receiver" };
         return ExtractColumn(csvFilePath, possibleNames);
     }
+
+    /// <summary>
+    /// Returns column indices that should be excluded when cleaning CSV for AI processing
+    /// (Marks & Numbers and Cargo Description columns with their spans)
+    /// </summary>
+    public static HashSet<int> GetColumnsToExclude(string csvFilePath)
+    {
+        var columnsToExclude = new HashSet<int>();
+        
+        // Column names to exclude
+        var marksNames = new[] { "Marks", "Mark", "M&N", "Marks & Numbers", "Marks and Numbers", "Marks & Nos" };
+        var cargoNames = new[] { "Cargo", "Cargo Description", "Goods Description", "Commodity" };
+        
+        using var reader = new StreamReader(csvFilePath);
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = false,
+            TrimOptions = TrimOptions.Trim,
+            BadDataFound = null
+        };
+        
+        using var csv = new CsvReader(reader, config);
+        
+        // Find the header row
+        string[]? headerRecord = null;
+        
+        while (csv.Read())
+        {
+            var row = new List<string>();
+            for (int i = 0; i < csv.Parser.Count; i++)
+            {
+                row.Add(csv.GetField(i) ?? "");
+            }
+            
+            var rowText = string.Join(" ", row);
+            if (rowText.Contains("Marks", StringComparison.OrdinalIgnoreCase) || 
+                rowText.Contains("Cargo", StringComparison.OrdinalIgnoreCase) ||
+                rowText.Contains("S/O Number", StringComparison.OrdinalIgnoreCase))
+            {
+                headerRecord = row.ToArray();
+                break;
+            }
+        }
+        
+        if (headerRecord == null) return columnsToExclude;
+        
+        // Find Marks & Numbers column and its span
+        for (int i = 0; i < headerRecord.Length; i++)
+        {
+            var header = CleanHeaderName(headerRecord[i]);
+            
+            if (!string.IsNullOrWhiteSpace(header))
+            {
+                // Check for Marks & Numbers
+                foreach (var name in marksNames)
+                {
+                    if (header.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        columnsToExclude.Add(i);
+                        // Add adjacent empty columns (span)
+                        for (int j = i + 1; j < headerRecord.Length; j++)
+                        {
+                            var nextHeader = CleanHeaderName(headerRecord[j]);
+                            if (string.IsNullOrWhiteSpace(nextHeader))
+                            {
+                                columnsToExclude.Add(j);
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                
+                // Check for Cargo Description
+                foreach (var name in cargoNames)
+                {
+                    if (header.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        columnsToExclude.Add(i);
+                        // Add adjacent empty columns (span)
+                        for (int j = i + 1; j < headerRecord.Length; j++)
+                        {
+                            var nextHeader = CleanHeaderName(headerRecord[j]);
+                            if (string.IsNullOrWhiteSpace(nextHeader))
+                            {
+                                columnsToExclude.Add(j);
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return columnsToExclude;
+    }
 }
