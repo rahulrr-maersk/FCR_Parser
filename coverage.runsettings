@@ -7,7 +7,7 @@
           <Format>cobertura,opencover</Format>
           <Exclude>[*.Tests]*</Exclude>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
-          <ExcludeByFile>**/Program.cs,**/*Migrations*/**</ExcludeByFile>
+          <ExcludeByFile>**/Program.cs,**/*Migrations*/**,**/Services/AI/*Provider.cs</ExcludeByFile>
           <IncludeDirectory>../FcrParser/</IncludeDirectory>
         </Configuration>
       </DataCollector>

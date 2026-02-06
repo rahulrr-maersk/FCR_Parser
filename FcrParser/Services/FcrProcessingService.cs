@@ -96,13 +96,13 @@ public class FcrProcessingService
         // Step 3: Build output data
         var extractedData = new Dictionary<string, object>
         {
-            ["MarksAndNumbers"] = marksAndNumbers,
-            ["CargoDescription"] = cargoDescription,
             ["ShipperInfo"] = new Dictionary<string, string?>
             {
                 ["Name"] = shipperData?.ShipperName,
                 ["Address"] = shipperData?.ShipperAddress
-            }
+            },
+            ["MarksAndNumbers"] = marksAndNumbers,
+            ["CargoDescription"] = cargoDescription,
         };
 
         // Step 4: Save JSON output

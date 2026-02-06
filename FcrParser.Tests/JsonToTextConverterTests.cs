@@ -256,6 +256,134 @@ public class JsonToTextConverterTests
         }
     }
 
+    [Fact]
+    public void ConvertJsonToText_ShouldHandleArrayWithNumbers()
+    {
+        // Arrange
+        var jsonContent = @"{
+            ""Numbers"": [123, 456, 789],
+            ""MixedArray"": [""text"", 123, true, null]
+        }";
+        var jsonFile = Path.GetTempFileName();
+        var txtFile = Path.GetTempFileName();
+        File.WriteAllText(jsonFile, jsonContent);
+
+        try
+        {
+            // Act
+            JsonToTextConverter.ConvertJsonToText(jsonFile, txtFile);
+
+            // Assert
+            var result = File.ReadAllText(txtFile);
+            Assert.Contains("Numbers:", result);
+            Assert.Contains("123", result);
+            Assert.Contains("456", result);
+            Assert.Contains("789", result);
+            Assert.Contains("Mixed Array:", result);
+        }
+        finally
+        {
+            CleanupFiles(jsonFile, txtFile);
+        }
+    }
+
+    [Fact]
+    public void ConvertJsonToText_ShouldHandleArrayWithObjects()
+    {
+        // Arrange
+        var jsonContent = @"{
+            ""Items"": [
+                {""Name"": ""Item1"", ""Value"": 100},
+                {""Name"": ""Item2"", ""Value"": 200}
+            ]
+        }";
+        var jsonFile = Path.GetTempFileName();
+        var txtFile = Path.GetTempFileName();
+        File.WriteAllText(jsonFile, jsonContent);
+
+        try
+        {
+            // Act
+            JsonToTextConverter.ConvertJsonToText(jsonFile, txtFile);
+
+            // Assert
+            var result = File.ReadAllText(txtFile);
+            Assert.Contains("Items:", result);
+            Assert.Contains("Item1", result);
+            Assert.Contains("Item2", result);
+        }
+        finally
+        {
+            CleanupFiles(jsonFile, txtFile);
+        }
+    }
+
+    [Fact]
+    public void ConvertJsonToText_ShouldHandleNumberProperty()
+    {
+        // Arrange
+        var jsonContent = @"{
+            ""Count"": 42,
+            ""Price"": 99.99,
+            ""Active"": true
+        }";
+        var jsonFile = Path.GetTempFileName();
+        var txtFile = Path.GetTempFileName();
+        File.WriteAllText(jsonFile, jsonContent);
+
+        try
+        {
+            // Act
+            JsonToTextConverter.ConvertJsonToText(jsonFile, txtFile);
+
+            // Assert
+            var result = File.ReadAllText(txtFile);
+            Assert.Contains("Count:", result);
+            Assert.Contains("42", result);
+            Assert.Contains("Price:", result);
+            Assert.Contains("99.99", result);
+            Assert.Contains("Active:", result);
+            Assert.Contains("True", result);
+        }
+        finally
+        {
+            CleanupFiles(jsonFile, txtFile);
+        }
+    }
+
+    [Fact]
+    public void ConvertJsonToText_ShouldHandleSimpleStringProperty()
+    {
+        // Arrange
+        var jsonContent = @"{
+            ""Title"": ""Simple String Value"",
+            ""Description"": ""Another string"",
+            ""Note"": ""Test Note""
+        }";
+        var jsonFile = Path.GetTempFileName();
+        var txtFile = Path.GetTempFileName();
+        File.WriteAllText(jsonFile, jsonContent);
+
+        try
+        {
+            // Act
+            JsonToTextConverter.ConvertJsonToText(jsonFile, txtFile);
+
+            // Assert
+            var result = File.ReadAllText(txtFile);
+            Assert.Contains("Title:", result);
+            Assert.Contains("Simple String Value", result);
+            Assert.Contains("Description:", result);
+            Assert.Contains("Another string", result);
+            Assert.Contains("Note:", result);
+            Assert.Contains("Test Note", result);
+        }
+        finally
+        {
+            CleanupFiles(jsonFile, txtFile);
+        }
+    }
+
     private (string jsonFile, string txtFile) CreateTempFiles(object data)
     {
         var jsonFile = Path.GetTempFileName();
