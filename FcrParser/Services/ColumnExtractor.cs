@@ -94,12 +94,35 @@ public static class ColumnExtractor
             bool isEmptyRow = true;
             var rowValues = new List<string>();
             
+            // Check if this row is a page break marker or continuation header
+            bool isPageBreak = false;
+            bool isContinuationHeader = false;
+            
+            for (int i = 0; i < csv.Parser.Count; i++)
+            {
+                var cellValue = csv.GetField(i) ?? "";
+                if (IsPageBreakMarker(cellValue))
+                {
+                    isPageBreak = true;
+                }
+                if (IsColumnHeader(cellValue))
+                {
+                    isContinuationHeader = true;
+                }
+            }
+            
+            // Skip page break markers and continuation headers, but continue reading
+            if (isPageBreak || isContinuationHeader)
+            {
+                continue;
+            }
+            
             foreach (var index in matchingIndices)
             {
                 var value = csv.GetField(index) ?? "";
                 value = CleanCellValue(value);
                 
-                if (!string.IsNullOrWhiteSpace(value) && !IsColumnHeader(value))
+                if (!string.IsNullOrWhiteSpace(value) && !IsColumnHeader(value) && !IsPageBreakMarker(value))
                 {
                     rowValues.Add(value);
                     isEmptyRow = false;
@@ -153,10 +176,30 @@ public static class ColumnExtractor
         {
             "Cargo Description", "Marks and Numbers", "Marks & Numbers",
             "S/O Number", "Weight", "Measurement", "Gross Weight",
-            "Nett Weight", "CBM", "Shipper", "Consignee"
+            "Nett Weight", "CBM", "Shipper", "Consignee",
+            // Multi-page continuation headers
+            "Marks and Numbers / Description continued",
+            "Description continued",
+            "continued"
         };
         
-        return columnHeaders.Any(h => value.Equals(h, StringComparison.OrdinalIgnoreCase));
+        return columnHeaders.Any(h => value.Contains(h, StringComparison.OrdinalIgnoreCase));
+    }
+    
+    /// <summary>
+    /// Checks if a row indicates end of data section (but not end of document)
+    /// </summary>
+    private static bool IsPageBreakMarker(string value)
+    {
+        var markers = new[]
+        {
+            "CONTINUE ON NEXT PAGE",
+            "Freight Collect",
+            "Back to SO Form",
+            "Click here to update"
+        };
+        
+        return markers.Any(m => value.Contains(m, StringComparison.OrdinalIgnoreCase));
     }
     
     public static List<string> ExtractMarksAndNumbers(string csvFilePath)
