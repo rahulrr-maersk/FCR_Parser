@@ -122,10 +122,16 @@ jobs:
         id: prepare-outputs
         run: |
           # Create a summary of processed files
-          echo "## Processing Results" > summary.md
+          echo "## Processing Complete" > summary.md
           echo "" >> summary.md
           echo "**Files Processed:** ${{ steps.extract-files.outputs.file_count }}" >> summary.md
           echo "**Completed:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> summary.md
+          echo "" >> summary.md
+          
+          # Add download link at the top
+          echo "### 📥 Download Files" >> summary.md
+          echo "" >> summary.md
+          echo "All output files are available as artifacts: [Download](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> summary.md
           echo "" >> summary.md
           echo "---" >> summary.md
           echo "" >> summary.md
@@ -136,12 +142,12 @@ jobs:
               base_name=$(basename "$json_file" .json)
               txt_file="Output/${base_name}.txt"
               
-              echo "### ${base_name}" >> summary.md
+              echo "### 📄 ${base_name}" >> summary.md
               echo "" >> summary.md
               
               # Add JSON output as collapsible section
               echo "<details>" >> summary.md
-              echo "<summary>JSON Output</summary>" >> summary.md
+              echo "<summary><b>JSON Output</b> (click to expand)</summary>" >> summary.md
               echo "" >> summary.md
               echo '```json' >> summary.md
               cat "$json_file" >> summary.md
@@ -150,12 +156,12 @@ jobs:
               echo "</details>" >> summary.md
               echo "" >> summary.md
               
-              # Add TXT output as collapsible section
+              # Add TXT output as collapsible section with proper formatting
               if [ -f "$txt_file" ]; then
                 echo "<details>" >> summary.md
-                echo "<summary>Text Output</summary>" >> summary.md
+                echo "<summary><b>Text Output</b> (click to expand)</summary>" >> summary.md
                 echo "" >> summary.md
-                echo '```' >> summary.md
+                echo '```text' >> summary.md
                 cat "$txt_file" >> summary.md
                 echo "" >> summary.md
                 echo '```' >> summary.md
@@ -167,11 +173,6 @@ jobs:
               echo "" >> summary.md
             fi
           done
-          
-          # Add download link for artifacts
-          echo "### Download Files" >> summary.md
-          echo "" >> summary.md
-          echo "All output files are available as artifacts: [Download](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> summary.md
       
       - name: Upload Output Artifacts
         uses: actions/upload-artifact@v4
