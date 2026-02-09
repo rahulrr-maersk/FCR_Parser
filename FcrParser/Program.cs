@@ -9,7 +9,7 @@ using Polly.Extensions.Http;
 // Priority: Environment Variables > User Secrets > appsettings.json
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", optional: false)
+    .AddJsonFile("appsettings.json", optional: true)
     .AddUserSecrets<Program>(optional: true)
     .AddEnvironmentVariables() // Allow GitHub Actions to inject secrets
     .Build();
