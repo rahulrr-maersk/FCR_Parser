@@ -1,14 +1,14 @@
 name: FCR Processing Request
-description: Upload FCR CSV files for automated extraction and processing
-title: "[FCR] "
+description: Upload FCR files for automated extraction and processing
+title: "FCR Processing Request"
 labels: ["fcr-processing"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Automated FCR Data Extraction
+        ### Automated FCR Data Extraction
         
-        This service processes your FCR CSV files and extracts the following data:
+        Upload your FCR CSV or Excel files below. This service extracts:
         
         **AI-Powered Extraction:**
         - Shipper Name
@@ -18,21 +18,13 @@ body:
         - Marks and Numbers (complete column data)
         - Cargo Description (complete column data)
         
-        **Output Formats:**
-        - Structured JSON file
-        - Formatted text file
-        
-        ## Instructions
-        
-        Drag and drop your CSV file(s) in the field below. Multiple files are supported.
-        
-        Processing typically completes within 2-5 minutes. Results will be posted directly in this issue thread.
+        **Output:** Structured JSON and formatted text files
         
   - type: textarea
     id: file_upload
     attributes:
-      label: CSV File Upload
-      description: Attach your FCR CSV file(s) here (max 25MB per file)
-      placeholder: Drag and drop CSV files here
+      label: File Upload
+      description: Attach your FCR file(s) here - supports CSV and XLSX formats (max 25MB per file)
+      placeholder: Drag and drop files here
     validations:
       required: true

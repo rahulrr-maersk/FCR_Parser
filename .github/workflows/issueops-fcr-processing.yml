@@ -33,29 +33,29 @@ jobs:
         with:
           dotnet-version: '9.0.x'
       
-      - name: Extract CSV Files
+      - name: Extract Files
         id: extract-files
         uses: actions/github-script@v7
         with:
           script: |
             const issueBody = context.payload.issue.body;
             
-            // GitHub attachment URL pattern for CSV files
-            const urlPattern = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/files\/\d+\/[^\s)]+\.csv/gi;
+            // GitHub attachment URL pattern for CSV and XLSX files
+            const urlPattern = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/files\/\d+\/[^\s)]+\.(csv|xlsx)/gi;
             const matches = issueBody.match(urlPattern);
             
             if (!matches || matches.length === 0) {
-              core.setFailed('No CSV files found. Please attach at least one .csv file to this issue.');
+              core.setFailed('No files found. Please attach at least one CSV or XLSX file to this issue.');
               return;
             }
             
-            console.log(`Found ${matches.length} CSV file(s)`);
+            console.log(`Found ${matches.length} file(s)`);
             
             // Store all URLs as JSON array
             core.setOutput('csv_urls', JSON.stringify(matches));
             core.setOutput('file_count', matches.length);
       
-      - name: Download CSV Files
+      - name: Download Files
         run: |
           mkdir -p Input
           
@@ -84,7 +84,7 @@ jobs:
           AI__MISTRALKEY: ${{ secrets.AI__MISTRALKEY }}
           AI__DEEPSEEKKEY: ${{ secrets.AI__DEEPSEEKKEY }}
         run: |
-          dotnet run --project FcrParser/FcrParser.csproj --configuration Release
+          dotnet run --project FcrParser/FcrParse.csproj --configuration Release
       
       - name: Prepare Output Files for Upload
         id: prepare-outputs
@@ -188,18 +188,18 @@ jobs:
         with:
           script: |
             const errorMsg = `## Processing Failed
-            
-**Timestamp:** ${new Date().toUTCString()}
 
-**Possible causes:**
-- Invalid CSV file format
-- File corruption or size exceeds limit
-- Temporary AI service unavailability
+            **Timestamp:** ${new Date().toUTCString()}
 
-**Troubleshooting:**
-1. Review [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for error details
-2. Verify CSV file formatting
-3. Retry upload or contact support`;
+            **Possible causes:**
+            - Invalid CSV file format
+            - File corruption or size exceeds limit
+            - Temporary AI service unavailability
+
+            **Troubleshooting:**
+            1. Review [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for error details
+            2. Verify CSV file formatting
+            3. Retry upload or contact support`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,

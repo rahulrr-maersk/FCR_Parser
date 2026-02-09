@@ -36,11 +36,14 @@ public class FcrProcessingService
     {
         var result = new ProcessingResult();
         
+        // Convert any XLSX files to CSV first
+        ConvertExcelFilesToCsv();
+        
         var csvFiles = Directory.GetFiles(_inputFolder, "*.csv");
         
         if (csvFiles.Length == 0)
         {
-            Console.WriteLine("⚠️  No CSV files found in Input folder.");
+            Console.WriteLine("No CSV or Excel files found in Input folder.");
             return result;
         }
 
@@ -67,6 +70,40 @@ public class FcrProcessingService
         }
 
         return result;
+    }
+    
+    /// <summary>
+    /// Converts any XLSX files in the input folder to CSV
+    /// </summary>
+    private void ConvertExcelFilesToCsv()
+    {
+        var xlsxFiles = Directory.GetFiles(_inputFolder, "*.xlsx");
+        
+        if (xlsxFiles.Length == 0)
+            return;
+            
+        Console.WriteLine($"Converting {xlsxFiles.Length} Excel file(s) to CSV...\n");
+        
+        foreach (var xlsxFile in xlsxFiles)
+        {
+            try
+            {
+                var fileName = Path.GetFileNameWithoutExtension(xlsxFile);
+                var csvPath = Path.Combine(_inputFolder, $"{fileName}.csv");
+                
+                ExcelConverter.ConvertToCsv(xlsxFile, csvPath);
+                Console.WriteLine($"  Converted: {Path.GetFileName(xlsxFile)} → {Path.GetFileName(csvPath)}");
+                
+                // Delete the original XLSX file
+                File.Delete(xlsxFile);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  Failed to convert {Path.GetFileName(xlsxFile)}: {ex.Message}");
+            }
+        }
+        
+        Console.WriteLine();
     }
 
     /// <summary>
