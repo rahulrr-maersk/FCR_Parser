@@ -6,10 +6,12 @@ using Polly;
 using Polly.Extensions.Http;
 
 // Build configuration for AI providers
+// Priority: Environment Variables > User Secrets > appsettings.json
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false)
     .AddUserSecrets<Program>(optional: true)
+    .AddEnvironmentVariables() // Allow GitHub Actions to inject secrets
     .Build();
 
 // Polly retry policy: Handle transient HTTP errors with exponential backoff
