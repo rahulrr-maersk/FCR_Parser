@@ -2,7 +2,7 @@ name: IssueOps - FCR Processing
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, labeled, edited]
 
 permissions:
   issues: write
@@ -14,11 +14,24 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: React to Issue
+      - name: Acknowledge Issue
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.reactions.createForIssue({
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Processing Started
+              
+Your FCR file(s) are being processed. This typically takes 2-5 minutes.
+
+**Status:** Processing in progress...
+
+Results will be posted here automatically when complete.`
+            });
+            
+            await github.rest.reactions.createForIssue({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
