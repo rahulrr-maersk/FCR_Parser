@@ -23,12 +23,19 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: `## Processing Started
-              
-Your FCR file(s) are being processed. This typically takes 2-5 minutes.
 
-**Status:** Processing in progress...
+            Your FCR file(s) are being processed.
 
-Results will be posted here automatically when complete.`
+            **What we extract:**
+            - Shipper Name and Address (AI-powered)
+            - Marks and Numbers (complete column)
+            - Cargo Description (complete column)
+
+            **Output:** JSON and text files
+
+            **Estimated time:** 2-5 minutes
+
+            Results will be posted here when complete.`
             });
             
             await github.rest.reactions.createForIssue({
