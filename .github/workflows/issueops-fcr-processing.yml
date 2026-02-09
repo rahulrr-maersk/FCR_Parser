@@ -2,7 +2,7 @@ name: IssueOps - FCR Processing
 
 on:
   issues:
-    types: [opened, labeled, edited]
+    types: [opened]
 
 permissions:
   issues: write
@@ -60,11 +60,23 @@ jobs:
           script: |
             const issueBody = context.payload.issue.body;
             
-            // GitHub attachment URL pattern for CSV and XLSX files
-            const urlPattern = /https:\/\/github\.com\/[^\/]+\/[^\/]+\/files\/\d+\/[^\s)]+\.(csv|xlsx)/gi;
-            const matches = issueBody.match(urlPattern);
+            console.log('Issue body:', issueBody);
             
-            if (!matches || matches.length === 0) {
+            // GitHub attachment URL patterns - try both formats
+            const patterns = [
+              /https:\/\/github\.com\/[^\/]+\/[^\/]+\/files\/\d+\/[^\s)]+\.(csv|xlsx)/gi,
+              /https:\/\/github\.com\/user-attachments\/files\/[^\s)]+\.(csv|xlsx)/gi
+            ];
+            
+            let matches = [];
+            for (const pattern of patterns) {
+              const found = issueBody.match(pattern);
+              if (found) {
+                matches = matches.concat(found);
+              }
+            }
+            
+            if (matches.length === 0) {
               core.setFailed('No files found. Please attach at least one CSV or XLSX file to this issue.');
               return;
             }
@@ -185,14 +197,6 @@ jobs:
               body: summary
             });
             
-            // Add success reaction
-            await github.rest.reactions.createForIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              content: 'rocket'
-            });
-            
             // Close the issue automatically
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -226,11 +230,4 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: errorMsg
-            });
-            
-            await github.rest.reactions.createForIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              content: 'confused'
             });
